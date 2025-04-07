@@ -1,6 +1,8 @@
 package entities;
 
-public class Reservation {
+import java.io.Serializable;
+
+public class Reservation implements Serializable {
     private int id;
     private int customerId;
     private int spaceId;

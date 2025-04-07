@@ -2,6 +2,8 @@ package entities;
 
 import entities.enums.Roles;
 
+import java.io.Serializable;
+
 
 public class User {
         private int id;

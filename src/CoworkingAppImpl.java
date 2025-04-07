@@ -2,12 +2,18 @@ import entities.CoworkingSpace;
 import entities.Reservation;
 import entities.User;
 import entities.enums.Roles;
+import exceptions.CoworkingSpaceNotFoundException;
+import exceptions.ReservationNotFoundException;
+import service.FileService;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
 public class CoworkingAppImpl implements CoworkingApp{
+    private final String SPACES_FILE = "spaces.dat";
+    private final String RESERVATIONS_FILE = "reservations.dat";
+
     private List<CoworkingSpace> coworkingSpaces = new ArrayList<>();
     private List<User> users = new ArrayList<>();
     private List<Reservation> reservations = new ArrayList<>();
@@ -24,7 +30,9 @@ public class CoworkingAppImpl implements CoworkingApp{
         System.out.println("Enter space price: ");
         int price = in.nextInt();
         coworkingSpaces.add(new CoworkingSpace(coworkingSpaceCounter++, spaceType,price));
+        FileService.saveToFile(coworkingSpaces, SPACES_FILE);
         System.out.println("New coworking space was successfully added");
+
         getAllAvailableSpaces();
     }
 
@@ -32,13 +40,20 @@ public class CoworkingAppImpl implements CoworkingApp{
     public void removeSpace() {
         getAllAvailableSpaces();
         System.out.println("Enter coworking space id to remove");
-        int id = in.nextInt();
-        coworkingSpaces.remove(coworkingSpaces.get(id));
-        System.out.println("Coworking space was removed successfully");
+        try {
+            int id = in.nextInt();
+            coworkingSpaces.remove(coworkingSpaces.get(id));
+            FileService.saveToFile(coworkingSpaces, SPACES_FILE);
+            System.out.println("Coworking space was removed successfully");
+        }catch (CoworkingSpaceNotFoundException exception){
+            throw new CoworkingSpaceNotFoundException("Coworking space with given Id not found");
+
+        }
     }
 
     @Override
     public void viewAllReservations() {
+        reservations = FileService.readFromFile(RESERVATIONS_FILE);
         if (reservations.isEmpty()){
             System.out.println("No reservations");
         }
@@ -61,16 +76,18 @@ public class CoworkingAppImpl implements CoworkingApp{
         if (reservations.get(id).getCustomerId() == currentUser.getId()) {
             reservations.remove(id);
             System.out.println("Reservation with id " + id + " was successfully deleted");
+            FileService.saveToFile(reservations, RESERVATIONS_FILE);
         }else {
             System.out.println("You can`t delete not your reservation");
         }}
-        catch (RuntimeException exception){
-            System.out.println("Wrong id for reservation");
+        catch (ReservationNotFoundException exception){
+            throw new ReservationNotFoundException("Reservation with given Id not found");
         }
     }
 
     @Override
     public void getAllAvailableSpaces() {
+        coworkingSpaces = FileService.readFromFile(SPACES_FILE);
         for (CoworkingSpace space : coworkingSpaces){
             System.out.println(space.toString());
         }
@@ -102,11 +119,13 @@ public class CoworkingAppImpl implements CoworkingApp{
         System.out.print("Enter end time (HH:MM): ");
         String endTime = in.nextLine();
         reservations.add(new Reservation(reservationIdCounter++, currentUser.getId(), spaceId, date, startTime, endTime));
+        FileService.saveToFile(reservations, RESERVATIONS_FILE);
         System.out.println("Reservation made successfully!\n");
     }
 
     @Override
     public void viewMyReservations() {
+        reservations = FileService.readFromFile(RESERVATIONS_FILE);
         System.out.println("Printing your reservations");
         for (Reservation reservation: reservations){
             if (currentUser.getId() == reservation.getCustomerId()){
@@ -216,12 +235,18 @@ public class CoworkingAppImpl implements CoworkingApp{
     }
 
     public CoworkingAppImpl() {
+        coworkingSpaces = FileService.readFromFile(SPACES_FILE);
+        reservations = FileService.readFromFile(RESERVATIONS_FILE);
+
         users.add(new User(1, "Rifat", "Aisabakiev", "123", Roles.CUSTOMER, 5000));
         users.add(new User(2, "Alex", "Grant", "1234567890", Roles.ADMIN, 0));
         users.add(new User(3, "Martin", "Targaryen", "qwerty", Roles.CUSTOMER, 5000));
 
-        coworkingSpaces.add(new CoworkingSpace(1,"Room1",2000));
-        coworkingSpaces.add(new CoworkingSpace(2,"Private",5000));
-        coworkingSpaces.add(new CoworkingSpace(3,"Open",1000));
+        if (coworkingSpaces.isEmpty()) {
+            coworkingSpaces.add(new CoworkingSpace(1, "Room1", 2000));
+            coworkingSpaces.add(new CoworkingSpace(2, "Private", 5000));
+            coworkingSpaces.add(new CoworkingSpace(3, "Open", 1000));
+            FileService.saveToFile(coworkingSpaces,SPACES_FILE);
+        }
     }
 }

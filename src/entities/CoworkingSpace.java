@@ -1,6 +1,8 @@
 package entities;
 
-public class CoworkingSpace {
+import java.io.Serializable;
+
+public class CoworkingSpace implements Serializable {
     private int id;
     private String type;
     private int price;
