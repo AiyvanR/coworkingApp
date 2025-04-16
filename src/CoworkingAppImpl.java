@@ -6,9 +6,7 @@ import exceptions.CoworkingSpaceNotFoundException;
 import exceptions.ReservationNotFoundException;
 import service.FileService;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class CoworkingAppImpl implements CoworkingApp{
     private final String SPACES_FILE = "spaces.dat";
@@ -18,9 +16,17 @@ public class CoworkingAppImpl implements CoworkingApp{
     private List<User> users = new ArrayList<>();
     private List<Reservation> reservations = new ArrayList<>();
     private User currentUser;
-    private static int reservationIdCounter =1;
-    private static int coworkingSpaceCounter =4;
+    private static int reservationIdCounter;
+    private static int coworkingSpaceCounter;
     private Scanner in = new Scanner(System.in);
+
+    private int findMaxReservationId(List<Reservation> reservations){
+        return reservations.stream().mapToInt(Reservation::getId).max().orElse(0);
+    }
+
+    private int findMaxCoworkingSpaceId(List<CoworkingSpace> coworkingSpaces){
+        return coworkingSpaces.stream().mapToInt(CoworkingSpace::getId).max().orElse(0);
+    }
 
 
     @Override
@@ -58,9 +64,7 @@ public class CoworkingAppImpl implements CoworkingApp{
             System.out.println("No reservations");
         }
         System.out.println("Printing all active reservations");
-        for (Reservation reservation : reservations){
-            System.out.println(reservation.toString());
-        }
+        reservations.forEach(System.out::println);
         System.out.println();
     }
 
@@ -88,9 +92,7 @@ public class CoworkingAppImpl implements CoworkingApp{
     @Override
     public void getAllAvailableSpaces() {
         coworkingSpaces = FileService.readFromFile(SPACES_FILE);
-        for (CoworkingSpace space : coworkingSpaces){
-            System.out.println(space.toString());
-        }
+        coworkingSpaces.stream().forEach(System.out::println);
         System.out.println();
     }
 
@@ -99,38 +101,42 @@ public class CoworkingAppImpl implements CoworkingApp{
         getAllAvailableSpaces();
         System.out.print("Enter space ID to reserve: ");
         int spaceId = in.nextInt();
-        CoworkingSpace selectedSpace = null;
-        for (CoworkingSpace space : coworkingSpaces) {
-            if (space.getId() == spaceId) {
-                selectedSpace = space;
-                break;
-            }
-        }
+        Optional<CoworkingSpace> selectedSpace = coworkingSpaces.stream().filter(space -> space.getId() == spaceId).findFirst();
 
-        if (selectedSpace == null) {
+
+        if (selectedSpace.isPresent()) {
+            in.nextLine();
+            System.out.print("Enter date (YYYY-MM-DD): ");
+            String date = in.nextLine();
+            System.out.print("Enter start time (HH:MM): ");
+            String startTime = in.nextLine();
+            System.out.print("Enter end time (HH:MM): ");
+            String endTime = in.nextLine();
+            reservations.add(new Reservation(reservationIdCounter++, currentUser.getId(), spaceId, date, startTime, endTime));
+            FileService.saveToFile(reservations, RESERVATIONS_FILE);
+            System.out.println("Reservation made successfully!\n");
+        }else {
             System.out.println("Invalid space ID! Please try again.");
-            return;
         }
-        in.nextLine();
-        System.out.print("Enter date (YYYY-MM-DD): ");
-        String date = in.nextLine();
-        System.out.print("Enter start time (HH:MM): ");
-        String startTime = in.nextLine();
-        System.out.print("Enter end time (HH:MM): ");
-        String endTime = in.nextLine();
-        reservations.add(new Reservation(reservationIdCounter++, currentUser.getId(), spaceId, date, startTime, endTime));
-        FileService.saveToFile(reservations, RESERVATIONS_FILE);
-        System.out.println("Reservation made successfully!\n");
     }
 
     @Override
     public void viewMyReservations() {
         reservations = FileService.readFromFile(RESERVATIONS_FILE);
         System.out.println("Printing your reservations");
-        for (Reservation reservation: reservations){
-            if (currentUser.getId() == reservation.getCustomerId()){
-                System.out.println(reservation.toString());
-            }
+
+        Map<Integer, List<Reservation>> reservationsByUser = new HashMap<>();
+        for (Reservation r : reservations) {
+            reservationsByUser
+                    .computeIfAbsent(r.getCustomerId(), k -> new ArrayList<>())
+                    .add(r);
+        }
+
+        List<Reservation> myReservations = reservationsByUser.get(currentUser.getId());
+        if (myReservations == null || myReservations.isEmpty()) {
+            System.out.println("You have no reservations.");
+        } else {
+            myReservations.forEach(System.out::println);
         }
     }
 
@@ -238,6 +244,7 @@ public class CoworkingAppImpl implements CoworkingApp{
         coworkingSpaces = FileService.readFromFile(SPACES_FILE);
         reservations = FileService.readFromFile(RESERVATIONS_FILE);
 
+
         users.add(new User(1, "Rifat", "Aisabakiev", "123", Roles.CUSTOMER, 5000));
         users.add(new User(2, "Alex", "Grant", "1234567890", Roles.ADMIN, 0));
         users.add(new User(3, "Martin", "Targaryen", "qwerty", Roles.CUSTOMER, 5000));
@@ -248,5 +255,8 @@ public class CoworkingAppImpl implements CoworkingApp{
             coworkingSpaces.add(new CoworkingSpace(3, "Open", 1000));
             FileService.saveToFile(coworkingSpaces,SPACES_FILE);
         }
+        reservationIdCounter = findMaxReservationId(reservations) + 1;
+        coworkingSpaceCounter = findMaxCoworkingSpaceId(coworkingSpaces) + 1;
+
     }
 }
